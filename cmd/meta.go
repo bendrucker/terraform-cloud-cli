@@ -34,7 +34,7 @@ func flagUsage(flags *flag.FlagSet) string {
 	var out string
 
 	flags.VisitAll(func(f *flag.Flag) {
-		s := fmt.Sprintf("  -%s", f.Name) // Two spaces before -; see next two comments.
+		s := fmt.Sprintf("  --%s", f.Name) // Two spaces before -; see next two comments.
 		name, usage := flag.UnquoteUsage(f)
 		if len(name) > 0 {
 			s += " " + name
@@ -42,7 +42,7 @@ func flagUsage(flags *flag.FlagSet) string {
 		s += "\n    \t"
 		s += strings.ReplaceAll(usage, "\n", "\n    \t")
 
-		out += s + "\n"
+		out += s + "\n\n"
 	})
 
 	return out

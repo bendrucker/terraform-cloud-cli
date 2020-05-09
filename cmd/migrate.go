@@ -27,8 +27,8 @@ type MigrateCommand struct {
 func (c *MigrateCommand) flags() *flag.FlagSet {
 	f := c.flagSet("migrate")
 
-	f.StringVar(&c.WorkspaceName, "workspace-name", "", "The name of the Terraform Cloud workspace (conflicts with -workspace-prefix)")
-	f.StringVar(&c.WorkspacePrefix, "workspace-prefix", "", "The prefix of the Terraform Cloud workspaces (conflicts with -workspace-name)")
+	f.StringVar(&c.WorkspaceName, "workspace-name", "", "The name of the Terraform Cloud workspace (conflicts with --workspace-prefix)")
+	f.StringVar(&c.WorkspacePrefix, "workspace-prefix", "", "The prefix of the Terraform Cloud workspaces (conflicts with --workspace-name)")
 	f.StringVar(&c.ModulesDir, "modules", "", "A directory where other Terraform modules are stored. If set, it will be scanned recursively for terraform_remote_state references.")
 	f.StringVar(&c.WorkspaceVariable, "workspace-variable", "environment", "Variable that will replace terraform.workspace")
 	f.StringVar(&c.TfvarsFilename, "tfvars-filename", configwrite.TfvarsAlternateFilename, "New filename for terraform.tfvars")
