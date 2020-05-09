@@ -26,7 +26,7 @@ func NewCLI() *cli.CLI {
 
 	c.Commands = map[string]cli.CommandFactory{
 		"migrate": func() (cli.Command, error) {
-			return &RunCommand{Meta: meta}, nil
+			return &MigrateCommand{Meta: meta}, nil
 		},
 	}
 

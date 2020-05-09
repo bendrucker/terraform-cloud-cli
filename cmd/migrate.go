@@ -16,12 +16,6 @@ import (
 type MigrateCommand struct {
 	*Meta
 
-	Config MigrateCommandConfig
-}
-
-type MigrateCommandConfig struct {
-	Hostname          string
-	Organization      string
 	WorkspaceName     string
 	WorkspacePrefix   string
 	WorkspaceVariable string
@@ -33,16 +27,13 @@ type MigrateCommandConfig struct {
 func (c *MigrateCommand) flags() *flag.FlagSet {
 	f := c.flagSet("migrate")
 
-	f.StringVar(&c.Config.WorkspaceName, "workspace-name", "", "The name of the Terraform Cloud workspace (conflicts with -workspace-prefix)")
-	f.StringVar(&c.Config.WorkspacePrefix, "workspace-prefix", "", "The prefix of the Terraform Cloud workspaces (conflicts with -workspace-name)")
-	f.StringVar(&c.Config.ModulesDir, "modules", "", "A directory where other Terraform modules are stored. If set, it will be scanned recursively for terraform_remote_state references.")
-	f.StringVar(&c.Config.WorkspaceVariable, "workspace-variable", "environment", "Variable that will replace terraform.workspace")
-	f.StringVar(&c.Config.TfvarsFilename, "tfvars-filename", configwrite.TfvarsAlternateFilename, "New filename for terraform.tfvars")
+	f.StringVar(&c.WorkspaceName, "workspace-name", "", "The name of the Terraform Cloud workspace (conflicts with -workspace-prefix)")
+	f.StringVar(&c.WorkspacePrefix, "workspace-prefix", "", "The prefix of the Terraform Cloud workspaces (conflicts with -workspace-name)")
+	f.StringVar(&c.ModulesDir, "modules", "", "A directory where other Terraform modules are stored. If set, it will be scanned recursively for terraform_remote_state references.")
+	f.StringVar(&c.WorkspaceVariable, "workspace-variable", "environment", "Variable that will replace terraform.workspace")
+	f.StringVar(&c.TfvarsFilename, "tfvars-filename", configwrite.TfvarsAlternateFilename, "New filename for terraform.tfvars")
 
-	f.StringVar(&c.Config.Hostname, "hostname", "app.terraform.io", "Hostname for Terraform Cloud")
-	f.StringVar(&c.Config.Organization, "organization", "", "Organization name in Terraform Cloud")
-
-	f.BoolVar(&c.Config.NoInit, "no-init", false, "Disable calling 'terraform init' before and after updating configuration to copy state.")
+	f.BoolVar(&c.NoInit, "no-init", false, "Disable calling 'terraform init' before and after updating configuration to copy state.")
 
 	return f
 }
@@ -69,28 +60,28 @@ func (c *MigrateCommand) Run(args []string) int {
 
 	c.UI.Info(fmt.Sprintf("Upgrading Terraform module %s", abspath))
 
-	if c.Config.WorkspaceName == "" && c.Config.WorkspacePrefix == "" {
+	if c.WorkspaceName == "" && c.WorkspacePrefix == "" {
 		c.UI.Error("workspace name or prefix is required")
 		return 1
 	}
 
-	if c.Config.WorkspaceName != "" && c.Config.WorkspacePrefix != "" {
+	if c.WorkspaceName != "" && c.WorkspacePrefix != "" {
 		c.UI.Error("workspace cannot have a name and prefix")
 		return 1
 	}
 
 	migration, diags := migrate.New(path, migrate.Config{
 		Backend: migrate.RemoteBackendConfig{
-			Hostname:     c.Config.Hostname,
-			Organization: c.Config.Organization,
+			Hostname:     c.config.Hostname,
+			Organization: c.config.Organization,
 			Workspaces: migrate.WorkspaceConfig{
-				Prefix: c.Config.WorkspacePrefix,
-				Name:   c.Config.WorkspaceName,
+				Prefix: c.WorkspacePrefix,
+				Name:   c.WorkspaceName,
 			},
 		},
-		WorkspaceVariable: c.Config.WorkspaceVariable,
-		TfvarsFilename:    c.Config.TfvarsFilename,
-		ModulesDir:        c.Config.ModulesDir,
+		WorkspaceVariable: c.WorkspaceVariable,
+		TfvarsFilename:    c.TfvarsFilename,
+		ModulesDir:        c.ModulesDir,
 	})
 
 	if diags.HasErrors() {
@@ -104,7 +95,7 @@ func (c *MigrateCommand) Run(args []string) int {
 		return 1
 	}
 
-	if !c.Config.NoInit {
+	if !c.NoInit {
 		c.UI.Info("Running 'terraform init' prior to updating backend")
 		c.UI.Info("This ensures that Terraform has persisted the existing backend configuration to local state")
 		fmt.Println()
@@ -128,7 +119,7 @@ func (c *MigrateCommand) Run(args []string) int {
 		fmt.Println(str)
 	}
 
-	if !c.Config.NoInit {
+	if !c.NoInit {
 		c.UI.Info("Running 'terraform init' to copy state")
 		c.UI.Info("When prompted, type 'yes' to confirm")
 		fmt.Println()
@@ -151,7 +142,7 @@ Usage: terraform-cloud migrate [DIR] [options]
   Migrate a Terraform module to Terraform Cloud
 
 Options:
-` + c.flagUsage(c.flags()))
+` + flagUsage(c.flags()))
 }
 
 func (c *MigrateCommand) Synopsis() string {
