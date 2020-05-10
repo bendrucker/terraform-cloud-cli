@@ -44,7 +44,6 @@ func (s *Tfvars) path(filename string) string {
 
 // Changes determines changes required to remove terraform.workspace
 func (s *Tfvars) Changes() (Changes, hcl.Diagnostics) {
-	s.writer.parser.Sources()
 	if s.Complete() {
 		return Changes{}, nil
 	}

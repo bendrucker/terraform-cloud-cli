@@ -36,12 +36,14 @@ func (s *RemoteState) Changes() (Changes, hcl.Diagnostics) {
 	changes := Changes{}
 	var diags hcl.Diagnostics
 
+	parser := configs.NewParser(s.writer.fs)
+
 	_ = afero.Walk(s.writer.fs, s.Path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		if !info.IsDir() || !s.writer.parser.IsConfigDir(path) {
+		if !info.IsDir() || !parser.IsConfigDir(path) {
 			return nil
 		}
 
@@ -180,13 +182,15 @@ func (s *RemoteState) Changes() (Changes, hcl.Diagnostics) {
 
 // Changes updates the configured backend
 func (s *RemoteState) sources(path string) ([]*configs.Resource, hcl.Diagnostics) {
-	writer, diags := newWriter(path, s.writer.fs)
+	parser := configs.NewParser(s.writer.fs)
+	module, diags := parser.LoadConfigDir(path)
+
 	sources := make([]*configs.Resource, 0)
+	writer := newWriter(module, s.writer.fs)
 
 Source:
 	for _, source := range writer.RemoteStateDataSources() {
-		attrs, aDiags := source.Config.JustAttributes()
-		diags = append(diags, aDiags...)
+		attrs, diags := source.Config.JustAttributes()
 
 		backend, bDiags := attrs["backend"].Expr.Value(nil)
 		diags = append(diags, bDiags...)

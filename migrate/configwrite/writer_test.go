@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform/configs"
 	"github.com/lithammer/dedent"
 	"github.com/spf13/afero"
 )
@@ -12,14 +13,12 @@ import (
 func newTestWriter(t *testing.T, path string, setup func(afero.Fs)) *Writer {
 	fs := afero.NewMemMapFs()
 	setup(fs)
-	writer, diags := newWriter(path, fs)
-	if len(diags) != 0 {
-		for _, diag := range diags {
-			t.Error(diag.Error())
-		}
-		t.FailNow()
+	parser := configs.NewParser(fs)
+	module, diags := parser.LoadConfigDir(path)
+	if diags.HasErrors() {
+		t.Fatalf("failed to load module: %v", diags)
 	}
-	return writer
+	return newWriter(module, fs)
 }
 
 func newTestModule(t *testing.T, files map[string]string) *Writer {

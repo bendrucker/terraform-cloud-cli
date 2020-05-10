@@ -10,43 +10,21 @@ import (
 	"github.com/spf13/afero"
 )
 
-func New(path string) (*Writer, hcl.Diagnostics) {
-	return newWriter(path, nil)
+func New(module *configs.Module) *Writer {
+	return newWriter(module, nil)
 }
 
-func newWriter(path string, fs afero.Fs) (*Writer, hcl.Diagnostics) {
-	if fs == nil {
-		fs = afero.NewOsFs()
-	}
-	parser := configs.NewParser(fs)
-
-	if !parser.IsConfigDir(path) {
-		return nil, hcl.Diagnostics{
-			&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Not a module directory",
-				Detail:   fmt.Sprintf("Directory %s does not contain Terraform configuration files.", path),
-				Subject: &hcl.Range{
-					Filename: path,
-				},
-			},
-		}
-	}
-
-	module, diags := parser.LoadConfigDir(path)
-
+func newWriter(module *configs.Module, fs afero.Fs) *Writer {
 	return &Writer{
 		fs:     fs,
-		parser: parser,
 		module: module,
 		files:  make(map[string]*hclwrite.File),
-	}, diags
+	}
 }
 
 // Writer provides access to information about the Terraform module structure and the ability to update its files
 type Writer struct {
 	fs     afero.Fs
-	parser *configs.Parser
 	module *configs.Module
 	files  map[string]*hclwrite.File
 }

@@ -3,10 +3,18 @@ package migrate
 import (
 	"github.com/bendrucker/terraform-cloud-cli/migrate/configwrite"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/terraform/configs"
 )
 
-func New(path string, config Config) (*Migration, hcl.Diagnostics) {
-	writer, diags := configwrite.New(path)
+func New(path string, config Config) (*Migration, error) {
+	parser := configs.NewParser(nil)
+
+	module, diags := parser.LoadConfigDir(path)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	writer := configwrite.New(module)
 	steps := configwrite.NewSteps(writer, configwrite.Steps{
 		&configwrite.RemoteBackend{Config: config.Backend},
 		&configwrite.TerraformWorkspace{Variable: config.WorkspaceVariable},
@@ -22,11 +30,12 @@ func New(path string, config Config) (*Migration, hcl.Diagnostics) {
 		steps = steps.Append(step)
 	}
 
-	return &Migration{steps}, diags
+	return &Migration{module, steps}, diags
 }
 
 type Migration struct {
-	steps configwrite.Steps
+	module *configs.Module
+	steps  configwrite.Steps
 }
 
 func (m *Migration) Changes() (configwrite.Changes, hcl.Diagnostics) {
