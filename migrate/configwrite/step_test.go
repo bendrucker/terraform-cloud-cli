@@ -17,6 +17,7 @@ type stepTests []stepTest
 
 func testStepChanges(t *testing.T, tests stepTests) {
 	for _, test := range tests {
+		test := test
 		t.Run(test.name, func(t *testing.T) {
 			writer := newTestModule(t, test.in)
 			changes, err := test.step.WithWriter(writer).Changes()

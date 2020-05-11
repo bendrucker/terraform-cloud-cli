@@ -17,7 +17,7 @@ func newWriter(module *configs.Module, fs afero.Fs) *Writer {
 	}
 }
 
-// Writer provides access to information about the Terraform module structure and the ability to update its files
+// Writer provides access to information about the Terraform module structure and the ability to update its files.
 type Writer struct {
 	fs     afero.Fs
 	module *configs.Module

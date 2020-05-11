@@ -36,28 +36,31 @@ func (b *RemoteBackend) Name() string {
 	return "Remote Backend"
 }
 
-// Description returns a description of the step
+// Description returns a description of the step.
 func (b *RemoteBackend) Description() string {
 	return `A "remote" backend should be configured for Terraform Cloud (https://www.terraform.io/docs/backends/types/remote.html)`
 }
 
-// MultipleWorkspaces returns whether the remote backend will be configured for multiple prefixed workspaces
+// MultipleWorkspaces returns whether the remote backend will be configured for multiple prefixed workspaces.
 func (b *RemoteBackend) MultipleWorkspaces() bool {
 	return b.Config.Workspaces.Prefix != ""
 }
 
-// Changes updates the configured backend
+// Changes updates the configured backend.
 func (b *RemoteBackend) Changes() (Changes, error) {
 	if b.writer.module.Backend.Type == "remote" {
 		return Changes{}, nil
 	}
 
 	var path string
+
 	var file *File
+
 	var err error
 
 	if b.writer.HasBackend() {
 		path = b.writer.Backend().DeclRange.Filename
+
 		file, err = b.writer.File(path)
 		if err != nil {
 			return nil, err
@@ -91,13 +94,13 @@ func (b *RemoteBackend) Changes() (Changes, error) {
 			remote.AppendNewline()
 
 			workspaces := remote.AppendBlock(hclwrite.NewBlock("workspaces", nil)).Body()
+
 			if b.MultipleWorkspaces() {
 				workspaces.SetAttributeValue("prefix", cty.StringVal(b.Config.Workspaces.Prefix))
 			} else {
 				workspaces.SetAttributeValue("name", cty.StringVal(b.Config.Workspaces.Name))
 			}
 		}
-
 	}
 
 	return Changes{path: file}, nil

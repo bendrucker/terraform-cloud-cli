@@ -56,6 +56,7 @@ func (m *Meta) LoadConfig(host string) error {
 
 	client, err := tfe.NewClient(tfeConfig)
 	m.API = client
+
 	return err
 }
 

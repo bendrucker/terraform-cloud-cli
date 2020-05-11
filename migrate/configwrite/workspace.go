@@ -3,10 +3,8 @@ package configwrite
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"path/filepath"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/hashicorp/terraform/configs"
@@ -27,7 +25,7 @@ func (s *TerraformWorkspace) Name() string {
 	return "Replace terraform.workspace"
 }
 
-// Complete checks if any terraform.workspace replaces are proposed
+// Complete checks if any terraform.workspace replaces are proposed.
 func (s *TerraformWorkspace) Complete() bool {
 	files, _ := s.files()
 	for _, file := range files {
@@ -39,7 +37,7 @@ func (s *TerraformWorkspace) Complete() bool {
 	return true
 }
 
-// Description returns a description of the step
+// Description returns a description of the step.
 func (s *TerraformWorkspace) Description() string {
 	return `terraform.workpace will always be set to default and should not be used with Terraform Cloud (https://www.terraform.io/docs/state/workspaces.html#current-workspace-interpolation)`
 }
@@ -54,6 +52,7 @@ func (s *TerraformWorkspace) files() (map[string]*File, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		out[path] = file
 	}
 
@@ -64,7 +63,7 @@ func (s *TerraformWorkspace) files() (map[string]*File, error) {
 	return out, nil
 }
 
-// Changes determines changes required to remove terraform.workspace
+// Changes determines changes required to remove terraform.workspace.
 func (s *TerraformWorkspace) Changes() (Changes, error) {
 	files, err := s.files()
 	if err != nil {
@@ -72,6 +71,7 @@ func (s *TerraformWorkspace) Changes() (Changes, error) {
 	}
 
 	changes := make(Changes)
+
 	for path, file := range files {
 		if hasTerraformWorkspace(file.hcl.Body()) {
 			replaceTerraformWorkspace(file.hcl.Body(), s.Variable)
@@ -85,6 +85,7 @@ func (s *TerraformWorkspace) Changes() (Changes, error) {
 
 	if _, ok := s.writer.Variables()[s.Variable]; !ok {
 		path := filepath.Join(s.writer.Dir(), "variables.tf")
+
 		file, err := s.writer.File(path)
 		if err != nil {
 			return Changes{}, err
@@ -138,30 +139,6 @@ func replaceTerraformWorkspace(body *hclwrite.Body, variable string) {
 	for _, block := range body.Blocks() {
 		replaceTerraformWorkspace(block.Body(), variable)
 	}
-}
-
-func changedFiles(sources map[string][]byte, changes Changes) (Changes, hcl.Diagnostics) {
-	changed := make(Changes)
-
-	for path, file := range changes {
-		b, err := ioutil.ReadFile(path)
-		if err != nil {
-			return nil, hcl.Diagnostics{
-				&hcl.Diagnostic{
-					Summary: "file read error",
-					Detail:  fmt.Sprintf("could not read file %s", path),
-				},
-			}
-		}
-
-		if bytes.Equal(b, file.hcl.Bytes()) {
-			continue
-		}
-
-		changed[path] = file
-	}
-
-	return changed, nil
 }
 
 func addWorkspaceVariable(file *File, name string) *File {

@@ -14,10 +14,12 @@ func newTestWriter(t *testing.T, path string, setup func(afero.Fs)) *Writer {
 	fs := afero.NewMemMapFs()
 	setup(fs)
 	parser := configs.NewParser(fs)
+
 	module, diags := parser.LoadConfigDir(path)
 	if diags.HasErrors() {
 		t.Fatalf("failed to load module: %v", diags)
 	}
+
 	return newWriter(module, fs)
 }
 
@@ -38,5 +40,6 @@ func trimTestConfig(config string) string {
 	config = dedent.Dedent(config)
 	config = strings.ReplaceAll(config, "\t", "  ")
 	config = strings.TrimLeft(config, "\n")
+
 	return config
 }

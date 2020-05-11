@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-// Step is a step required to prepare a module to run in Terraform Cloud
+// Step is a step required to prepare a module to run in Terraform Cloud.
 type Step interface {
 	Name() string
 
@@ -21,6 +21,7 @@ func NewSteps(w *Writer, steps Steps) Steps {
 	for _, step := range steps {
 		step.WithWriter(w)
 	}
+
 	return steps
 }
 

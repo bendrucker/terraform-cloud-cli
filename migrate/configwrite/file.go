@@ -17,6 +17,7 @@ func ExistingFile(path string, fs afero.Fs) (*File, error) {
 	}
 
 	filename := filepath.Base(path)
+
 	f, diags := hclwrite.ParseConfig(b, filename, hcl.InitialPos)
 	if diags.HasErrors() {
 		return nil, err
@@ -90,7 +91,7 @@ func (f *File) Write() error {
 	return nil
 }
 
-// Changes is map of paths to file objects that should be written to prepare the module for Terraform Cloud
+// Changes is map of paths to file objects that should be written to prepare the module for Terraform Cloud.
 type Changes map[string]*File
 
 func (c Changes) Write() error {

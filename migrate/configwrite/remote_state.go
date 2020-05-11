@@ -3,7 +3,6 @@ package configwrite
 import (
 	"os"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/hashicorp/terraform/configs"
@@ -26,12 +25,12 @@ func (s *RemoteState) Name() string {
 	return "Update terraform_remote_state"
 }
 
-// Description returns a description of the step
+// Description returns a description of the step.
 func (s *RemoteState) Description() string {
 	return `A "remote" backend should be configured for Terraform Cloud (https://www.terraform.io/docs/backends/types/remote.html)`
 }
 
-// Changes updates the configured backend
+// Changes updates the configured backend.
 func (s *RemoteState) Changes() (Changes, error) {
 	changes := Changes{}
 	parser := configs.NewParser(s.writer.fs)
@@ -45,9 +44,9 @@ func (s *RemoteState) Changes() (Changes, error) {
 			return nil
 		}
 
-		sources, diags := s.sources(path)
-		if diags.HasErrors() {
-			return diags
+		sources, err := s.sources(path)
+		if err != nil {
+			return err
 		}
 
 		for _, source := range sources {
@@ -172,20 +171,17 @@ func (s *RemoteState) Changes() (Changes, error) {
 			changes[filepath] = file
 		}
 
-		if diags.HasErrors() {
-			return diags
-		}
-
 		return nil
 	})
-
-	return changes, nil
 }
 
-// Changes updates the configured backend
-func (s *RemoteState) sources(path string) ([]*configs.Resource, hcl.Diagnostics) {
+// Changes updates the configured backend.
+func (s *RemoteState) sources(path string) ([]*configs.Resource, error) {
 	parser := configs.NewParser(s.writer.fs)
 	module, diags := parser.LoadConfigDir(path)
+	if diags.HasErrors() {
+		return nil, diags
+	}
 
 	sources := make([]*configs.Resource, 0)
 	writer := newWriter(module, s.writer.fs)
@@ -193,27 +189,32 @@ func (s *RemoteState) sources(path string) ([]*configs.Resource, hcl.Diagnostics
 Source:
 	for _, source := range writer.RemoteStateDataSources() {
 		attrs, diags := source.Config.JustAttributes()
+		if diags.HasErrors() {
+			return nil, diags
+		}
 
-		backend, bDiags := attrs["backend"].Expr.Value(nil)
-		diags = append(diags, bDiags...)
+		backend, diags := attrs["backend"].Expr.Value(nil)
+		if diags.HasErrors() {
+			return nil, diags
+		}
 
 		if backend.AsString() != s.writer.Backend().Type {
 			continue
 		}
 
-		config, cDiags := attrs["config"].Expr.Value(nil)
+		config, diags := attrs["config"].Expr.Value(nil)
 		// errors on interpolations
-		if cDiags.HasErrors() {
+		if diags.HasErrors() {
 			continue
 		}
-		diags = append(diags, cDiags...)
 
-		remoteBackendConfigAttrs, rDiags := s.writer.Backend().Config.JustAttributes()
+		diags = nil
+
+		remoteBackendConfigAttrs, diags := s.writer.Backend().Config.JustAttributes()
 		// errors when workspaces is block
-		if rDiags.HasErrors() {
+		if diags.HasErrors() {
 			continue
 		}
-		diags = append(diags, rDiags...)
 
 		for key, value := range config.AsValueMap() {
 			// workspaces is a block
@@ -221,8 +222,10 @@ Source:
 				continue Source
 			}
 
-			rbValue, rDiags := remoteBackendConfigAttrs[key].Expr.Value(nil)
-			diags = append(diags, rDiags...)
+			rbValue, diags := remoteBackendConfigAttrs[key].Expr.Value(nil)
+			if diags.HasErrors() {
+				return nil, diags
+			}
 
 			if value.AsString() != rbValue.AsString() {
 				continue Source
@@ -230,10 +233,6 @@ Source:
 		}
 
 		sources = append(sources, source)
-	}
-
-	if diags.HasErrors() {
-		return nil, diags
 	}
 
 	return sources, nil
@@ -291,6 +290,7 @@ func flattenTokens(in []hclwrite.Tokens) hclwrite.Tokens {
 	for _, tokens := range in {
 		out = append(out, tokens...)
 	}
+
 	return out
 }
 

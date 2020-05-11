@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -12,7 +13,6 @@ import (
 	"github.com/bendrucker/terraform-cloud-cli/migrate"
 	"github.com/bendrucker/terraform-cloud-cli/migrate/configwrite"
 	"github.com/hashicorp/go-tfe"
-	"github.com/hashicorp/hcl/v2"
 	"github.com/pmezard/go-difflib/difflib"
 )
 
@@ -52,6 +52,7 @@ func (c *MigrateCommand) Run(args []string) int {
 	}
 
 	path := flags.Args()[0]
+
 	abspath, err := filepath.Abs(path)
 	if err != nil {
 		c.UI.Error(fmt.Sprintf("failed to resolve path: %s", path))
@@ -105,6 +106,7 @@ func (c *MigrateCommand) Run(args []string) int {
 		if err != nil {
 			c.UI.Error("Failed to list workspaces: " + err.Error())
 			c.UI.Info(`Credentials may be expired or invalid. Re-run "terraform login".`)
+
 			return 1
 		}
 
@@ -117,22 +119,21 @@ If you are using the "tfe" provider and "tfe_workspace" you should create worksp
 `))
 
 			fmt.Println()
+
 			if _, err := c.UI.Ask("Press enter to proceed:"); err != nil {
 				c.UI.Error(err.Error())
 				return 1
 			}
-		} else {
-			if err := c.assertUnlocked(list.Items); err != nil {
-				c.UI.Error(err.Error())
-				return 1
-			}
+		} else if err := c.assertUnlocked(list.Items); err != nil {
+			c.UI.Error(err.Error())
+			return 1
 		}
 	} else {
 		c.UI.Output("Checking for an existing Terraform Cloud workspace...")
 
 		ws, err := c.Meta.API.Workspaces.Read(context.Background(), c.config.Organization, c.WorkspaceName)
 		if err != nil {
-			if err != tfe.ErrResourceNotFound {
+			if errors.Is(err, tfe.ErrResourceNotFound) {
 				c.UI.Error("Failed to get workspace: " + err.Error())
 				c.UI.Info(`Credentials may be expired or invalid. Re-run "terraform login".`)
 				return 1
@@ -150,7 +151,7 @@ If you are using the "tfe" provider and "tfe_workspace" you should create worksp
 			}
 		}
 
-		if err == tfe.ErrResourceNotFound {
+		if errors.Is(err, tfe.ErrResourceNotFound) {
 			c.UI.Warn(fmt.Sprintf("Workspace named '%s' was not found", c.WorkspaceName))
 			fmt.Println()
 			c.UI.Info(`When "terraform init" runs with the new backend configuration, it will attempt to create this workspace.`)
@@ -194,10 +195,12 @@ If you are using the "tfe" provider and "tfe_workspace" you should create worksp
 			c.UI.Error(fmt.Sprintf("error writing diff: %v", err))
 			return 1
 		}
+
 		fmt.Println()
 	}
 
 	c.UI.Output("The changes above will be made in order to prepare the module for Terraform Cloud.")
+
 	if _, err := c.UI.Ask("Press enter to proceed:"); err != nil {
 		c.UI.Error(err.Error())
 		return 1
@@ -261,21 +264,6 @@ func (c *MigrateCommand) assertUnlocked(workspaces []*tfe.Workspace) error {
 		return fmt.Errorf("workspace '%s' is locked", locked[0])
 	default:
 		return fmt.Errorf("workspaces are locked: %s", strings.Join(locked, ", "))
-	}
-}
-
-func (c *MigrateCommand) printDiags(diags hcl.Diagnostics) {
-	for _, diag := range diags {
-		switch diag.Severity {
-		case hcl.DiagError:
-			c.UI.Error(diag.Summary)
-		case hcl.DiagWarning:
-			c.UI.Warn(diag.Summary)
-		}
-		c.UI.Info(diag.Detail)
-		if diag.Subject != nil {
-			c.UI.Info(diag.Subject.String())
-		}
 	}
 }
 
