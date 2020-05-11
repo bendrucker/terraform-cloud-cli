@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -8,8 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	migrate "github.com/bendrucker/terraform-cloud-migrate"
-	"github.com/bendrucker/terraform-cloud-migrate/configwrite"
+	"github.com/bendrucker/terraform-cloud-cli/migrate"
+	"github.com/bendrucker/terraform-cloud-cli/migrate/configwrite"
+	"github.com/hashicorp/go-tfe"
 	"github.com/hashicorp/hcl/v2"
 )
 
@@ -21,7 +23,6 @@ type MigrateCommand struct {
 	WorkspaceVariable string
 	TfvarsFilename    string
 	ModulesDir        string
-	NoInit            bool
 }
 
 func (c *MigrateCommand) flags() *flag.FlagSet {
@@ -32,8 +33,6 @@ func (c *MigrateCommand) flags() *flag.FlagSet {
 	f.StringVar(&c.ModulesDir, "modules", "", "A directory where other Terraform modules are stored. If set, it will be scanned recursively for terraform_remote_state references.")
 	f.StringVar(&c.WorkspaceVariable, "workspace-variable", "environment", "Variable that will replace terraform.workspace")
 	f.StringVar(&c.TfvarsFilename, "tfvars-filename", configwrite.TfvarsAlternateFilename, "New filename for terraform.tfvars")
-
-	f.BoolVar(&c.NoInit, "no-init", false, "Disable calling 'terraform init' before and after updating configuration to copy state.")
 
 	return f
 }
@@ -46,8 +45,8 @@ func (c *MigrateCommand) Run(args []string) int {
 		return 1
 	}
 
-	if len(flags.Args()) != 1 {
-		c.UI.Error("module path is required")
+	if flags.NArg() != 1 {
+		c.UI.Error(fmt.Sprintf("A single module path is required, received %d arguments", flags.NArg()))
 		return 1
 	}
 
@@ -70,7 +69,14 @@ func (c *MigrateCommand) Run(args []string) int {
 		return 1
 	}
 
-	migration, diags := migrate.New(path, migrate.Config{
+	if err := c.Meta.LoadConfig(c.config.Hostname); err != nil {
+		c.UI.Error(err.Error())
+		return 1
+	}
+
+	migration, err := migrate.New(path, migrate.Config{
+		Client: c.Meta.API,
+
 		Backend: migrate.RemoteBackendConfig{
 			Hostname:     c.config.Hostname,
 			Organization: c.config.Organization,
@@ -84,25 +90,72 @@ func (c *MigrateCommand) Run(args []string) int {
 		ModulesDir:        c.ModulesDir,
 	})
 
-	if diags.HasErrors() {
-		c.printDiags(diags)
+	if err != nil {
+		c.UI.Error(err.Error())
 		return 1
+	}
+
+	if migration.MultipleWorkspaces() {
+		c.UI.Output("Checking for existing Terraform Cloud workspaces...")
+
+		list, err := c.Meta.API.Workspaces.List(context.TODO(), c.config.Organization, tfe.WorkspaceListOptions{
+			Search: tfe.String(c.WorkspacePrefix),
+		})
+		if err != nil {
+			c.UI.Error("Failed to list workspaces: " + err.Error())
+			c.UI.Info(`Credentials may be expired or invalid. Re-run "terraform login".`)
+			return 1
+		}
+
+		if len(list.Items) == 0 {
+			c.UI.Warn(fmt.Sprintf("No workspaces found with prefix '%s'", c.WorkspacePrefix))
+			fmt.Println()
+			c.UI.Info(strings.TrimSpace(`
+When "terraform init" runs with the new backend configuration, it will attempt to create new workspaces.
+If you are using the "tfe" provider and "tfe_workspace" you should create workspaces via Terraform before proceeding.
+`))
+
+			fmt.Println()
+			if _, err := c.UI.Ask("Press enter to proceed:"); err != nil {
+				c.UI.Error(err.Error())
+				return 1
+			}
+		}
+	} else {
+		c.UI.Output("Checking for an existing Terraform Cloud workspace...")
+
+		_, err := c.Meta.API.Workspaces.Read(context.Background(), c.config.Organization, c.WorkspaceName)
+		if err != nil && err != tfe.ErrResourceNotFound {
+			c.UI.Error("Failed to get workspace: " + err.Error())
+			c.UI.Info(`Credentials may be expired or invalid. Re-run "terraform login".`)
+			return 1
+		}
+
+		if err == tfe.ErrResourceNotFound {
+			c.UI.Warn(fmt.Sprintf("Workspace named '%s' was not found", c.WorkspaceName))
+			fmt.Println()
+			c.UI.Info(`When "terraform init" runs with the new backend configuration, it will attempt to create this workspace.`)
+			c.UI.Info(`If you are using the "tfe" provider and "tfe_workspace" you should create a workspace via Terraform before proceeding.`)
+
+			fmt.Println()
+			if _, err := c.UI.Ask("Press enter to proceed:"); err != nil {
+				c.UI.Error(err.Error())
+				return 1
+			}
+		}
+	}
+
+	c.UI.Output("Running 'terraform init'...")
+	fmt.Println()
+
+	if code := c.terraformInit(abspath); code != 0 {
+		return code
 	}
 
 	changes, diags := migration.Changes()
 	if diags.HasErrors() {
 		c.printDiags(diags)
 		return 1
-	}
-
-	if !c.NoInit {
-		c.UI.Info("Running 'terraform init' prior to updating backend")
-		c.UI.Info("This ensures that Terraform has persisted the existing backend configuration to local state")
-		fmt.Println()
-
-		if code := c.terraformInit(abspath); code != 0 {
-			return code
-		}
 	}
 
 	if err := changes.WriteFiles(); err != nil {
@@ -119,14 +172,12 @@ func (c *MigrateCommand) Run(args []string) int {
 		fmt.Println(str)
 	}
 
-	if !c.NoInit {
-		c.UI.Info("Running 'terraform init' to copy state")
-		c.UI.Info("When prompted, type 'yes' to confirm")
-		fmt.Println()
+	c.UI.Info("Running 'terraform init' to copy state")
+	c.UI.Info("When prompted, type 'yes' to confirm")
+	fmt.Println()
 
-		if code := c.terraformInit(abspath); code != 0 {
-			return code
-		}
+	if code := c.terraformInit(abspath); code != 0 {
+		return code
 	}
 
 	c.UI.Info("Migration complete!")
@@ -158,7 +209,9 @@ func (c *MigrateCommand) printDiags(diags hcl.Diagnostics) {
 			c.UI.Warn(diag.Summary)
 		}
 		c.UI.Info(diag.Detail)
-		c.UI.Info(diag.Subject.String())
+		if diag.Subject != nil {
+			c.UI.Info(diag.Subject.String())
+		}
 	}
 }
 

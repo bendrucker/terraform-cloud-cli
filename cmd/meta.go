@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/go-tfe"
+	"github.com/hashicorp/terraform/command/cliconfig"
 	"github.com/mitchellh/cli"
 )
 
@@ -16,6 +17,7 @@ type Meta struct {
 	API    *tfe.Client
 }
 
+// MetaConfig stores configuration that can be set in all commands
 type MetaConfig struct {
 	Hostname     string
 	Organization string
@@ -28,6 +30,45 @@ func (m *Meta) flagSet(name string) *flag.FlagSet {
 	f.StringVar(&m.config.Organization, "organization", "", "Organization name in Terraform Cloud")
 
 	return f
+}
+
+func (m *Meta) LoadConfig(host string) error {
+	tfeConfig := tfe.DefaultConfig()
+	tfeConfig.Address = fmt.Sprintf("https://%s", host)
+
+	if tfeConfig.Token == "" {
+		config, diags := cliconfig.LoadConfig()
+		if diags.HasErrors() {
+			return diags.Err()
+		}
+
+		diags = config.Validate()
+		if diags.HasErrors() {
+			return diags.Err()
+		}
+
+		tfeConfig.Token = getToken(config, host)
+	}
+
+	if tfeConfig.Token == "" {
+		return fmt.Errorf("No Terraform Cloud API token set for %s", host)
+	}
+
+	client, err := tfe.NewClient(tfeConfig)
+	m.API = client
+	return err
+}
+
+func getToken(config *cliconfig.Config, host string) string {
+	if api, ok := config.Credentials[host]; ok {
+		if token, ok := api["token"]; ok {
+			if str, ok := token.(string); ok {
+				return str
+			}
+		}
+	}
+
+	return ""
 }
 
 func flagUsage(flags *flag.FlagSet) string {

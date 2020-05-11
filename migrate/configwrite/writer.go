@@ -11,7 +11,7 @@ import (
 )
 
 func New(module *configs.Module) *Writer {
-	return newWriter(module, nil)
+	return newWriter(module, afero.NewOsFs())
 }
 
 func newWriter(module *configs.Module, fs afero.Fs) *Writer {
