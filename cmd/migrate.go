@@ -189,8 +189,8 @@ If you are using the "tfe" provider and "tfe_workspace" you should create worksp
 
 func (c *MigrateCommand) Help() string {
 	return strings.TrimSpace(`
-Usage: terraform-cloud migrate [DIR] [options]
-  Migrate a Terraform module to Terraform Cloud
+Usage: terraform-cloud migrate [options]
+	Migrate a Terraform module from an existing backend to Terraform Cloud
 
 Options:
 ` + flagUsage(c.flags()))
