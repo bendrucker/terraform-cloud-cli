@@ -18,7 +18,7 @@ func newWriter(module *configs.Module, fs afero.Fs) *Writer {
 	return &Writer{
 		fs:     fs,
 		module: module,
-		files:  make(map[string]*hclwrite.File),
+		files:  make(map[string]*File),
 	}
 }
 
@@ -26,7 +26,7 @@ func newWriter(module *configs.Module, fs afero.Fs) *Writer {
 type Writer struct {
 	fs     afero.Fs
 	module *configs.Module
-	files  map[string]*hclwrite.File
+	files  map[string]*File
 }
 
 // Dir returns the module directory
@@ -63,7 +63,7 @@ func (w *Writer) RemoteStateDataSources() []*configs.Resource {
 }
 
 // File returns an existing file object or creates and caches one
-func (w *Writer) File(path string) (*hclwrite.File, hcl.Diagnostics) {
+func (w *Writer) File(path string) (*File, hcl.Diagnostics) {
 	file, ok := w.files[path]
 	if ok {
 		return file, nil
@@ -76,20 +76,26 @@ func (w *Writer) File(path string) (*hclwrite.File, hcl.Diagnostics) {
 				Severity: hcl.DiagError,
 				Summary:  "file read error",
 				Detail:   fmt.Sprintf("file %s could not be read: %v", path, err),
+				Subject: &hcl.Range{
+					Filename: path,
+				},
 			},
 		}
 	}
 
 	var diags hcl.Diagnostics
+	var hclFile *hclwrite.File
 	if os.IsNotExist(err) {
-		file = hclwrite.NewEmptyFile()
+		hclFile = hclwrite.NewEmptyFile()
 	} else {
-		file, diags = hclwrite.ParseConfig(b, path, hcl.InitialPos)
+		hclFile, diags = hclwrite.ParseConfig(b, path, hcl.InitialPos)
+	}
+	if diags.HasErrors() {
+		return nil, diags
 	}
 
-	if file != nil {
-		w.files[path] = file
-	}
+	file = NewFile(path, hclFile)
+	w.files[path] = file
 
 	return file, diags
 }

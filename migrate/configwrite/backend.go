@@ -54,7 +54,7 @@ func (b *RemoteBackend) Changes() (Changes, hcl.Diagnostics) {
 	}
 
 	var path string
-	var file *hclwrite.File
+	var file *File
 	var diags hcl.Diagnostics
 
 	if b.writer.HasBackend() {
@@ -63,11 +63,11 @@ func (b *RemoteBackend) Changes() (Changes, hcl.Diagnostics) {
 	} else {
 		path = filepath.Join(b.writer.Dir(), "backend.tf")
 		file, diags = b.writer.File(path)
-		tf := file.Body().AppendBlock(hclwrite.NewBlock("terraform", []string{}))
+		tf := file.hcl.Body().AppendBlock(hclwrite.NewBlock("terraform", []string{}))
 		tf.Body().AppendBlock(hclwrite.NewBlock("backend", []string{"remote"}))
 	}
 
-	for _, block := range file.Body().Blocks() {
+	for _, block := range file.hcl.Body().Blocks() {
 		if block.Type() != "terraform" {
 			continue
 		}
@@ -94,7 +94,7 @@ func (b *RemoteBackend) Changes() (Changes, hcl.Diagnostics) {
 
 	}
 
-	return Changes{path: &Change{File: file}}, diags
+	return Changes{path: file}, diags
 }
 
 var _ Step = (*RemoteBackend)(nil)

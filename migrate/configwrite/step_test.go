@@ -24,8 +24,8 @@ func testStepChanges(t *testing.T, tests stepTests) {
 			changes, diags := test.step.WithWriter(writer).Changes()
 
 			out := make(map[string]string)
-			for path, change := range changes {
-				out[change.Destination(path)] = string(change.File.Bytes())
+			for _, file := range changes {
+				out[file.Destination()] = string(file.hcl.Bytes())
 			}
 
 			expected := make(map[string]string)

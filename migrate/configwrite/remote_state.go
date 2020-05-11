@@ -55,7 +55,7 @@ func (s *RemoteState) Changes() (Changes, hcl.Diagnostics) {
 			file, fDiags := s.writer.File(source.DeclRange.Filename)
 			diags = append(diags, fDiags...)
 
-			block := file.Body().FirstMatchingBlock("data", []string{
+			block := file.hcl.Body().FirstMatchingBlock("data", []string{
 				source.Type,
 				source.Name,
 			})
@@ -167,7 +167,7 @@ func (s *RemoteState) Changes() (Changes, hcl.Diagnostics) {
 				},
 			}))
 
-			changes[filepath] = &Change{File: file}
+			changes[filepath] = file
 		}
 
 		if diags.HasErrors() {

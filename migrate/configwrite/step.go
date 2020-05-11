@@ -39,14 +39,17 @@ func (s Steps) Changes() (Changes, hcl.Diagnostics) {
 	for _, step := range s {
 		changes, diags := step.Changes()
 
-		for path, change := range changes {
-			if err, ok := result.Add(path, change).(*renameCollisionError); ok {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagWarning,
-					Summary:  "Rename skipped due to conflict",
-					Detail:   fmt.Sprintf(`The "%s" step attempted to rename %s to %s, but a previous step already renamed this file to %s.`, step.Name(), path, err.Proposed, err.Existing),
-					Subject:  &hcl.Range{Filename: err.Proposed},
-				})
+		for path, file := range changes {
+			if existing, ok := result[path]; ok {
+				if existing.NewName != "" && file.NewName != "" {
+					diags = append(diags, &hcl.Diagnostic{
+						Severity: hcl.DiagWarning,
+						Summary:  "Rename skipped due to conflict",
+						Detail:   fmt.Sprintf(`The "%s" step attempted to rename %s to %s, but a previous step already renamed this file to %s.`, step.Name(), path, file.NewName, existing.NewName),
+						Subject:  &hcl.Range{Filename: path},
+					})
+				}
+
 			}
 		}
 

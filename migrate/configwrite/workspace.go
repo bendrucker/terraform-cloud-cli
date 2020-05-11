@@ -31,7 +31,7 @@ func (s *TerraformWorkspace) Name() string {
 func (s *TerraformWorkspace) Complete() bool {
 	files, _ := s.files()
 	for _, file := range files {
-		if hasTerraformWorkspace(file.Body()) {
+		if hasTerraformWorkspace(file.hcl.Body()) {
 			return false
 		}
 	}
@@ -44,10 +44,10 @@ func (s *TerraformWorkspace) Description() string {
 	return `terraform.workpace will always be set to default and should not be used with Terraform Cloud (https://www.terraform.io/docs/state/workspaces.html#current-workspace-interpolation)`
 }
 
-func (s *TerraformWorkspace) files() (map[string]*hclwrite.File, hcl.Diagnostics) {
+func (s *TerraformWorkspace) files() (map[string]*File, hcl.Diagnostics) {
 	parser := configs.NewParser(s.writer.fs)
 	files, _, diags := parser.ConfigDirFiles(s.writer.Dir())
-	out := make(map[string]*hclwrite.File, len(files))
+	out := make(map[string]*File, len(files))
 
 	for _, path := range files {
 		file, fDiags := s.writer.File(path)
@@ -64,9 +64,9 @@ func (s *TerraformWorkspace) Changes() (Changes, hcl.Diagnostics) {
 
 	changes := make(Changes)
 	for path, file := range files {
-		if hasTerraformWorkspace(file.Body()) {
-			replaceTerraformWorkspace(file.Body(), s.Variable)
-			changes[path] = &Change{File: file}
+		if hasTerraformWorkspace(file.hcl.Body()) {
+			replaceTerraformWorkspace(file.hcl.Body(), s.Variable)
+			changes[path] = file
 		}
 	}
 
@@ -79,9 +79,7 @@ func (s *TerraformWorkspace) Changes() (Changes, hcl.Diagnostics) {
 		file, fDiags := s.writer.File(path)
 		diags = append(diags, fDiags...)
 
-		changes[path] = &Change{
-			File: addWorkspaceVariable(file, s.Variable),
-		}
+		changes[path] = addWorkspaceVariable(file, s.Variable)
 	}
 
 	return changes, diags
@@ -134,7 +132,7 @@ func replaceTerraformWorkspace(body *hclwrite.Body, variable string) {
 func changedFiles(sources map[string][]byte, changes Changes) (Changes, hcl.Diagnostics) {
 	changed := make(Changes)
 
-	for path, change := range changes {
+	for path, file := range changes {
 		b, err := ioutil.ReadFile(path)
 		if err != nil {
 			return nil, hcl.Diagnostics{
@@ -145,17 +143,17 @@ func changedFiles(sources map[string][]byte, changes Changes) (Changes, hcl.Diag
 			}
 		}
 
-		if bytes.Equal(b, change.File.Bytes()) {
+		if bytes.Equal(b, file.hcl.Bytes()) {
 			continue
 		}
 
-		changed[path] = &Change{File: change.File}
+		changed[path] = file
 	}
 
 	return changed, nil
 }
 
-func addWorkspaceVariable(file *hclwrite.File, name string) *hclwrite.File {
+func addWorkspaceVariable(file *File, name string) *File {
 	variable := hclwrite.NewBlock("variable", []string{name})
 	variable.Body().SetAttributeRaw("type", hclwrite.Tokens{
 		{
@@ -165,7 +163,7 @@ func addWorkspaceVariable(file *hclwrite.File, name string) *hclwrite.File {
 	})
 	variable.Body().SetAttributeValue("description", cty.StringVal(fmt.Sprintf("The %s where the module will be deployed", name)))
 
-	body := file.Body()
+	body := file.hcl.Body()
 	existing := body.BuildTokens(nil)
 
 	body.Clear()

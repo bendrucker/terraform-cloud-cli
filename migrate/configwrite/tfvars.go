@@ -51,12 +51,9 @@ func (s *Tfvars) Changes() (Changes, hcl.Diagnostics) {
 	existing := s.path(TfvarsFilename)
 	file, diags := s.writer.File(existing)
 
-	return Changes{
-		existing: &Change{
-			File:   file,
-			Rename: s.Filename,
-		},
-	}, diags
+	file.NewName = s.Filename
+
+	return Changes{existing: file}, diags
 }
 
 var _ Step = (*Tfvars)(nil)
