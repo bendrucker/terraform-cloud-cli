@@ -6,8 +6,8 @@ import (
 	"github.com/mitchellh/cli"
 )
 
-func NewCLI() *cli.CLI {
-	c := cli.NewCLI("terraform-cloud", "")
+func NewCLI(version string) *cli.CLI {
+	c := cli.NewCLI("terraform-cloud", version)
 	c.Args = os.Args[1:]
 
 	meta := &Meta{

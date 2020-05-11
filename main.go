@@ -9,8 +9,12 @@ import (
 	"github.com/bendrucker/terraform-cloud-cli/cmd"
 )
 
+var (
+	version = "dev"
+)
+
 func main() {
-	cli := cmd.NewCLI()
+	cli := cmd.NewCLI(version)
 
 	logging.SetOutput()
 
