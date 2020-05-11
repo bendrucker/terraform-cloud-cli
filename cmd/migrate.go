@@ -120,15 +120,33 @@ If you are using the "tfe" provider and "tfe_workspace" you should create worksp
 				c.UI.Error(err.Error())
 				return 1
 			}
+		} else {
+			if err := c.assertUnlocked(list.Items); err != nil {
+				c.UI.Error(err.Error())
+				return 1
+			}
 		}
 	} else {
 		c.UI.Output("Checking for an existing Terraform Cloud workspace...")
 
-		_, err := c.Meta.API.Workspaces.Read(context.Background(), c.config.Organization, c.WorkspaceName)
-		if err != nil && err != tfe.ErrResourceNotFound {
-			c.UI.Error("Failed to get workspace: " + err.Error())
-			c.UI.Info(`Credentials may be expired or invalid. Re-run "terraform login".`)
-			return 1
+		ws, err := c.Meta.API.Workspaces.Read(context.Background(), c.config.Organization, c.WorkspaceName)
+		if err != nil {
+			if err != tfe.ErrResourceNotFound {
+				c.UI.Error("Failed to get workspace: " + err.Error())
+				c.UI.Info(`Credentials may be expired or invalid. Re-run "terraform login".`)
+				return 1
+			}
+
+			c.UI.Warn(fmt.Sprintf("Workspace named '%s' was not found", c.WorkspaceName))
+			fmt.Println()
+			c.UI.Info(`When "terraform init" runs with the new backend configuration, it will attempt to create this workspace.`)
+			c.UI.Info(`If you are using the "tfe" provider and "tfe_workspace" you should create a workspace via Terraform before proceeding.`)
+
+			fmt.Println()
+			if _, err := c.UI.Ask("Press enter to proceed:"); err != nil {
+				c.UI.Error(err.Error())
+				return 1
+			}
 		}
 
 		if err == tfe.ErrResourceNotFound {
@@ -139,6 +157,11 @@ If you are using the "tfe" provider and "tfe_workspace" you should create worksp
 
 			fmt.Println()
 			if _, err := c.UI.Ask("Press enter to proceed:"); err != nil {
+				c.UI.Error(err.Error())
+				return 1
+			}
+		} else {
+			if err := c.assertUnlocked([]*tfe.Workspace{ws}); err != nil {
 				c.UI.Error(err.Error())
 				return 1
 			}
@@ -198,6 +221,25 @@ Options:
 
 func (c *MigrateCommand) Synopsis() string {
 	return "Migrate a Terraform module from an existing backend to Terraform Cloud"
+}
+
+func (c *MigrateCommand) assertUnlocked(workspaces []*tfe.Workspace) error {
+	locked := make([]string, 0)
+
+	for _, ws := range workspaces {
+		if ws.Locked {
+			locked = append(locked, ws.Name)
+		}
+	}
+
+	switch len(locked) {
+	case 0:
+		return nil
+	case 1:
+		return fmt.Errorf("workspace '%s' is locked", locked[0])
+	default:
+		return fmt.Errorf("workspaces are locked: %s", strings.Join(locked, ", "))
+	}
 }
 
 func (c *MigrateCommand) printDiags(diags hcl.Diagnostics) {
