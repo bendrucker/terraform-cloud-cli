@@ -32,13 +32,11 @@ func (s *RemoteState) Description() string {
 }
 
 // Changes updates the configured backend
-func (s *RemoteState) Changes() (Changes, hcl.Diagnostics) {
+func (s *RemoteState) Changes() (Changes, error) {
 	changes := Changes{}
-	var diags hcl.Diagnostics
-
 	parser := configs.NewParser(s.writer.fs)
 
-	_ = afero.Walk(s.writer.fs, s.Path, func(path string, info os.FileInfo, err error) error {
+	return changes, afero.Walk(s.writer.fs, s.Path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -47,13 +45,17 @@ func (s *RemoteState) Changes() (Changes, hcl.Diagnostics) {
 			return nil
 		}
 
-		sources, sDiags := s.sources(path)
-		diags = append(diags, sDiags...)
+		sources, diags := s.sources(path)
+		if diags.HasErrors() {
+			return diags
+		}
 
 		for _, source := range sources {
 			filepath := source.DeclRange.Filename
-			file, fDiags := s.writer.File(source.DeclRange.Filename)
-			diags = append(diags, fDiags...)
+			file, err := s.writer.File(source.DeclRange.Filename)
+			if err != nil {
+				return err
+			}
 
 			block := file.hcl.Body().FirstMatchingBlock("data", []string{
 				source.Type,
@@ -177,7 +179,7 @@ func (s *RemoteState) Changes() (Changes, hcl.Diagnostics) {
 		return nil
 	})
 
-	return changes, diags
+	return changes, nil
 }
 
 // Changes updates the configured backend
@@ -230,7 +232,11 @@ Source:
 		sources = append(sources, source)
 	}
 
-	return sources, diags
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	return sources, nil
 }
 
 func (s *RemoteState) workspaceNameTokens(workspace *hclwrite.Attribute) hclwrite.Tokens {

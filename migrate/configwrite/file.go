@@ -4,23 +4,47 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/pmezard/go-difflib/difflib"
+	"github.com/spf13/afero"
 )
 
-func NewFile(path string, hcl *hclwrite.File) *File {
+func ExistingFile(path string, fs afero.Fs) (*File, error) {
+	b, err := afero.ReadFile(fs, path)
+	if err != nil {
+		return nil, err
+	}
+
+	filename := filepath.Base(path)
+	f, diags := hclwrite.ParseConfig(b, filename, hcl.InitialPos)
+	if diags.HasErrors() {
+		return nil, err
+	}
+
 	return &File{
-		hcl:          hcl,
-		Dir:          filepath.Dir(path),
-		OriginalName: filepath.Base(path),
+		hcl:           f,
+		Dir:           filepath.Dir(path),
+		OriginalName:  filename,
+		OriginalBytes: b,
+	}, nil
+}
+
+func NewFile(path string) *File {
+	return &File{
+		hcl:     hclwrite.NewEmptyFile(),
+		Dir:     filepath.Dir(path),
+		NewName: filepath.Base(path),
 	}
 }
 
 type File struct {
 	hcl *hclwrite.File
 
-	Dir          string
-	OriginalName string
-	NewName      string
+	Dir           string
+	OriginalName  string
+	OriginalBytes []byte
+	NewName       string
 }
 
 func (f *File) Destination() string {
@@ -30,6 +54,21 @@ func (f *File) Destination() string {
 	}
 
 	return filepath.Join(f.Dir, name)
+}
+
+func (f *File) Diff() difflib.UnifiedDiff {
+	var from string
+	if f.OriginalName != "" {
+		from = filepath.Join(f.Dir, f.OriginalName)
+	}
+
+	return difflib.UnifiedDiff{
+		A:        difflib.SplitLines(string(f.OriginalBytes)),
+		B:        difflib.SplitLines(string(f.hcl.Bytes())),
+		FromFile: from,
+		ToFile:   f.Destination(),
+		Context:  3,
+	}
 }
 
 func (f *File) Write() error {

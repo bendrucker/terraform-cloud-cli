@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/spf13/afero"
 )
 
@@ -43,17 +42,20 @@ func (s *Tfvars) path(filename string) string {
 }
 
 // Changes determines changes required to remove terraform.workspace
-func (s *Tfvars) Changes() (Changes, hcl.Diagnostics) {
+func (s *Tfvars) Changes() (Changes, error) {
 	if s.Complete() {
 		return Changes{}, nil
 	}
 
 	existing := s.path(TfvarsFilename)
-	file, diags := s.writer.File(existing)
+	file, err := s.writer.File(existing)
+	if err != nil {
+		return Changes{}, err
+	}
 
 	file.NewName = s.Filename
 
-	return Changes{existing: file}, diags
+	return Changes{existing: file}, nil
 }
 
 var _ Step = (*Tfvars)(nil)

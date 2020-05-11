@@ -3,7 +3,6 @@ package configwrite
 import (
 	"testing"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -12,7 +11,6 @@ type stepTest struct {
 	step     Step
 	in       map[string]string
 	expected map[string]string
-	diags    hcl.Diagnostics
 }
 
 type stepTests []stepTest
@@ -21,7 +19,10 @@ func testStepChanges(t *testing.T, tests stepTests) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			writer := newTestModule(t, test.in)
-			changes, diags := test.step.WithWriter(writer).Changes()
+			changes, err := test.step.WithWriter(writer).Changes()
+			if !assert.NoError(t, err) {
+				return
+			}
 
 			out := make(map[string]string)
 			for _, file := range changes {
@@ -34,7 +35,6 @@ func testStepChanges(t *testing.T, tests stepTests) {
 			}
 
 			assert.Equal(t, expected, out)
-			assert.Equal(t, test.diags, diags)
 		})
 	}
 }

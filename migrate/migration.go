@@ -3,7 +3,6 @@ package migrate
 import (
 	"github.com/bendrucker/terraform-cloud-cli/migrate/configwrite"
 	"github.com/hashicorp/go-tfe"
-	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/terraform/configs"
 )
 
@@ -50,6 +49,6 @@ func (m *Migration) MultipleWorkspaces() bool {
 	return m.config.Backend.Workspaces.Prefix != ""
 }
 
-func (m *Migration) Changes() (configwrite.Changes, hcl.Diagnostics) {
+func (m *Migration) Changes() (configwrite.Changes, error) {
 	return m.steps.Changes()
 }

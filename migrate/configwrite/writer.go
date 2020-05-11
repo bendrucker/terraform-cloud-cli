@@ -1,11 +1,6 @@
 package configwrite
 
 import (
-	"fmt"
-	"os"
-
-	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/hashicorp/terraform/configs"
 	"github.com/spf13/afero"
 )
@@ -63,39 +58,27 @@ func (w *Writer) RemoteStateDataSources() []*configs.Resource {
 }
 
 // File returns an existing file object or creates and caches one
-func (w *Writer) File(path string) (*File, hcl.Diagnostics) {
+func (w *Writer) File(path string) (*File, error) {
 	file, ok := w.files[path]
 	if ok {
 		return file, nil
 	}
 
-	b, err := afero.ReadFile(w.fs, path)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, hcl.Diagnostics{
-			&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "file read error",
-				Detail:   fmt.Sprintf("file %s could not be read: %v", path, err),
-				Subject: &hcl.Range{
-					Filename: path,
-				},
-			},
+	exists, err := afero.Exists(w.fs, path)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exists {
+		file = NewFile(path)
+	} else {
+		file, err = ExistingFile(path, w.fs)
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	var diags hcl.Diagnostics
-	var hclFile *hclwrite.File
-	if os.IsNotExist(err) {
-		hclFile = hclwrite.NewEmptyFile()
-	} else {
-		hclFile, diags = hclwrite.ParseConfig(b, path, hcl.InitialPos)
-	}
-	if diags.HasErrors() {
-		return nil, diags
-	}
-
-	file = NewFile(path, hclFile)
 	w.files[path] = file
 
-	return file, diags
+	return file, nil
 }

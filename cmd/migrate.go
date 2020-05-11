@@ -13,6 +13,7 @@ import (
 	"github.com/bendrucker/terraform-cloud-cli/migrate/configwrite"
 	"github.com/hashicorp/go-tfe"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/pmezard/go-difflib/difflib"
 )
 
 type MigrateCommand struct {
@@ -175,21 +176,42 @@ If you are using the "tfe" provider and "tfe_workspace" you should create worksp
 		return code
 	}
 
-	changes, diags := migration.Changes()
-	if diags.HasErrors() {
-		c.printDiags(diags)
+	changes, err := migration.Changes()
+	if err != nil {
+		c.UI.Error(err.Error())
 		return 1
 	}
 
-	if err := changes.WriteFiles(); err != nil {
+	if len(changes) == 0 {
+		c.UI.Info("No changes made, migration is already complete")
+		return 0
+	}
+
+	c.UI.Info(fmt.Sprintf("Migration will change %d file(s)\n", len(changes)))
+
+	for _, file := range changes {
+		if err := difflib.WriteUnifiedDiff(os.Stdout, file.Diff()); err != nil {
+			c.UI.Error(fmt.Sprintf("error writing diff: %v", err))
+			return 1
+		}
+		fmt.Println()
+	}
+
+	c.UI.Output("The changes above will be made in order to prepare the module for Terraform Cloud.")
+	if _, err := c.UI.Ask("Press enter to proceed:"); err != nil {
+		c.UI.Error(err.Error())
+		return 1
+	}
+
+	if err := changes.Write(); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
 
 	for path, change := range changes {
 		str := path
-		if change.Rename != "" {
-			str = fmt.Sprintf("%s -> %s", path, change.Destination(path))
+		if change.OriginalName != "" && change.NewName != "" {
+			str = fmt.Sprintf("%s -> %s", path, change.Destination())
 		}
 
 		fmt.Println(str)

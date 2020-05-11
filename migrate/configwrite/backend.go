@@ -3,7 +3,6 @@ package configwrite
 import (
 	"path/filepath"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -48,21 +47,28 @@ func (b *RemoteBackend) MultipleWorkspaces() bool {
 }
 
 // Changes updates the configured backend
-func (b *RemoteBackend) Changes() (Changes, hcl.Diagnostics) {
+func (b *RemoteBackend) Changes() (Changes, error) {
 	if b.writer.module.Backend.Type == "remote" {
 		return Changes{}, nil
 	}
 
 	var path string
 	var file *File
-	var diags hcl.Diagnostics
+	var err error
 
 	if b.writer.HasBackend() {
 		path = b.writer.Backend().DeclRange.Filename
-		file, diags = b.writer.File(path)
+		file, err = b.writer.File(path)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		path = filepath.Join(b.writer.Dir(), "backend.tf")
-		file, diags = b.writer.File(path)
+		file, err = b.writer.File(path)
+		if err != nil {
+			return nil, err
+		}
+
 		tf := file.hcl.Body().AppendBlock(hclwrite.NewBlock("terraform", []string{}))
 		tf.Body().AppendBlock(hclwrite.NewBlock("backend", []string{"remote"}))
 	}
@@ -94,7 +100,7 @@ func (b *RemoteBackend) Changes() (Changes, hcl.Diagnostics) {
 
 	}
 
-	return Changes{path: file}, diags
+	return Changes{path: file}, nil
 }
 
 var _ Step = (*RemoteBackend)(nil)

@@ -44,23 +44,32 @@ func (s *TerraformWorkspace) Description() string {
 	return `terraform.workpace will always be set to default and should not be used with Terraform Cloud (https://www.terraform.io/docs/state/workspaces.html#current-workspace-interpolation)`
 }
 
-func (s *TerraformWorkspace) files() (map[string]*File, hcl.Diagnostics) {
+func (s *TerraformWorkspace) files() (map[string]*File, error) {
 	parser := configs.NewParser(s.writer.fs)
 	files, _, diags := parser.ConfigDirFiles(s.writer.Dir())
 	out := make(map[string]*File, len(files))
 
 	for _, path := range files {
-		file, fDiags := s.writer.File(path)
+		file, err := s.writer.File(path)
+		if err != nil {
+			return nil, err
+		}
 		out[path] = file
-		diags = append(diags, fDiags...)
 	}
 
-	return out, diags
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	return out, nil
 }
 
 // Changes determines changes required to remove terraform.workspace
-func (s *TerraformWorkspace) Changes() (Changes, hcl.Diagnostics) {
-	files, diags := s.files()
+func (s *TerraformWorkspace) Changes() (Changes, error) {
+	files, err := s.files()
+	if err != nil {
+		return Changes{}, err
+	}
 
 	changes := make(Changes)
 	for path, file := range files {
@@ -71,18 +80,20 @@ func (s *TerraformWorkspace) Changes() (Changes, hcl.Diagnostics) {
 	}
 
 	if len(changes) == 0 {
-		return changes, diags
+		return changes, nil
 	}
 
 	if _, ok := s.writer.Variables()[s.Variable]; !ok {
 		path := filepath.Join(s.writer.Dir(), "variables.tf")
-		file, fDiags := s.writer.File(path)
-		diags = append(diags, fDiags...)
+		file, err := s.writer.File(path)
+		if err != nil {
+			return Changes{}, err
+		}
 
 		changes[path] = addWorkspaceVariable(file, s.Variable)
 	}
 
-	return changes, diags
+	return changes, err
 }
 
 func hasTerraformWorkspace(body *hclwrite.Body) bool {
