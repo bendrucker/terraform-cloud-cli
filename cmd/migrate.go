@@ -97,6 +97,20 @@ func (c *MigrateCommand) Run(args []string) int {
 		return 1
 	}
 
+	c.UI.Output("Checking for existing Terraform Cloud workspaces...")
+
+	workspaces, err := migration.RemoteWorkspaces()
+	if err != nil {
+		if !migration.MultipleWorkspaces() && errors.Is(err, migrate.ErrResourceNotFound) {
+			str := "No resources found with "
+			if migration.MultipleWorkspaces() {
+				str += "prefix: "
+			} else {
+				str += "name: "
+			}
+		}
+	}
+
 	if migration.MultipleWorkspaces() {
 		c.UI.Output("Checking for existing Terraform Cloud workspaces...")
 

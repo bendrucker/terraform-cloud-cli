@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"strings"
@@ -51,7 +52,7 @@ func (m *Meta) LoadConfig(host string) error {
 	}
 
 	if tfeConfig.Token == "" {
-		return fmt.Errorf("No Terraform Cloud API token set for %s", host)
+		return errors.New("API token for Terraform Cloud is required")
 	}
 
 	client, err := tfe.NewClient(tfeConfig)

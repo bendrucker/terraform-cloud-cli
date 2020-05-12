@@ -1,6 +1,9 @@
 package migrate
 
 import (
+	"context"
+	"errors"
+
 	"github.com/bendrucker/terraform-cloud-cli/migrate/configwrite"
 	"github.com/hashicorp/go-tfe"
 	"github.com/hashicorp/terraform/configs"
@@ -45,8 +48,37 @@ type Migration struct {
 	steps  configwrite.Steps
 }
 
+var (
+	ErrWorkspaceLocked  = tfe.ErrWorkspaceLocked
+	ErrResourceNotFound = tfe.ErrResourceNotFound
+)
+
 func (m *Migration) MultipleWorkspaces() bool {
 	return m.config.Backend.Workspaces.Prefix != ""
+}
+
+func (m *Migration) RemoteWorkspaces() ([]*tfe.Workspace, error) {
+	if m.MultipleWorkspaces() {
+		list, err := m.client.Workspaces.List(context.TODO(), m.config.Backend.Organization, tfe.WorkspaceListOptions{
+			Search: tfe.String(m.config.Backend.Workspaces.Prefix),
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		return list.Items, nil
+	}
+
+	ws, err := m.client.Workspaces.Read(context.TODO(), m.config.Backend.Organization, m.config.Backend.Workspaces.Name)
+	if err != nil {
+		if errors.Is(err, tfe.ErrResourceNotFound) {
+			return []*tfe.Workspace{}, nil
+		}
+
+		return nil, err
+	}
+
+	return []*tfe.Workspace{ws}, nil
 }
 
 func (m *Migration) Changes() (configwrite.Changes, error) {
