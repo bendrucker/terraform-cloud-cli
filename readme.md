@@ -10,6 +10,13 @@
 
 Binaries are available for each [tagged release](https://github.com/bendrucker/terraform-cloud-cli/releases). Download an appropriate binary for your operating system and install it into `$PATH`.
 
+You can also install with Homebrew:
+
+```sh
+brew tap bendrucker/terraform-cloud-cli
+brew install terraform-cloud-cli
+```
+
 ## Usage
 
 <!-- go run . --help -->
