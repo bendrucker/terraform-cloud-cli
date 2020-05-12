@@ -1,2 +1,9 @@
 builds:
   - binary: terraform-cloud
+brews:
+  - github:
+      owner: bendrucker
+      name: terraform-cloud-cli
+    folder: HomebrewFormula
+    homepage: "https://github.com/bendrucker/terraform-cloud-cli"
+    description: Interactive CLI for operating workspaces in Terraform Cloud
