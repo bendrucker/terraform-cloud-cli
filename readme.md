@@ -28,6 +28,8 @@ Available commands are:
     open       Opens the Terraform Cloud UI to the workspace
 ```
 
+<hr>
+
 <!-- go run . migrate --help -->
 ### `migrate`
 
