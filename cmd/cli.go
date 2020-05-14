@@ -28,6 +28,9 @@ func NewCLI(version string) *cli.CLI {
 		"migrate": func() (cli.Command, error) {
 			return &MigrateCommand{Meta: meta}, nil
 		},
+		"open": func() (cli.Command, error) {
+			return &OpenCommand{Meta: meta}, nil
+		},
 	}
 
 	return c

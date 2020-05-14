@@ -25,6 +25,7 @@ Usage: terraform-cloud [--version] [--help] <command> [<args>]
 
 Available commands are:
     migrate    Migrate a Terraform module from an existing backend to Terraform Cloud
+    open       Opens the Terraform Cloud UI to the workspace
 ```
 
 <!-- go run . migrate --help -->

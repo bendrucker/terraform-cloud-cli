@@ -12,22 +12,12 @@ import (
 
 // Meta stores values and methods needed by all commands
 type Meta struct {
-	config MetaConfig
-	UI     cli.Ui
-	API    *tfe.Client
-}
-
-// MetaConfig stores configuration that can be set in all commands
-type MetaConfig struct {
-	Hostname     string
-	Organization string
+	UI  cli.Ui
+	API *tfe.Client
 }
 
 func (m *Meta) flagSet(name string) *flag.FlagSet {
 	f := flag.NewFlagSet(name, flag.ContinueOnError)
-
-	f.StringVar(&m.config.Hostname, "hostname", "app.terraform.io", "Hostname for Terraform Cloud")
-	f.StringVar(&m.config.Organization, "organization", "", "Organization name in Terraform Cloud")
 
 	return f
 }
