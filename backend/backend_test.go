@@ -65,7 +65,7 @@ func TestDecodeConfig(t *testing.T) {
 			Name: "remote/name",
 			Backend: &RemoteBackend{
 				Organization: String("org"),
-				Workspaces: &Workspaces{
+				Workspaces: Workspaces{
 					Name: String("ws-name"),
 				},
 			},
@@ -74,7 +74,7 @@ func TestDecodeConfig(t *testing.T) {
 			Name: "remote/prefix",
 			Backend: &RemoteBackend{
 				Organization: String("org"),
-				Workspaces: &Workspaces{
+				Workspaces: Workspaces{
 					Prefix: String("ws-"),
 				},
 			},
@@ -85,7 +85,7 @@ func TestDecodeConfig(t *testing.T) {
 			Backend: &RemoteBackend{
 				Hostname:     String("host.name"),
 				Organization: String("org"),
-				Workspaces: &Workspaces{
+				Workspaces: Workspaces{
 					Name: String("ws-name"),
 				},
 			},

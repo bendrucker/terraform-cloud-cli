@@ -19,6 +19,9 @@ import (
 type MigrateCommand struct {
 	*Meta
 
+	Hostname     string
+	Organization string
+
 	WorkspaceName     string
 	WorkspacePrefix   string
 	WorkspaceVariable string
@@ -28,6 +31,9 @@ type MigrateCommand struct {
 
 func (c *MigrateCommand) flags() *flag.FlagSet {
 	f := c.flagSet("migrate")
+
+	f.StringVar(&c.Hostname, "hostname", "app.terraform.io", "Hostname for Terraform Cloud")
+	f.StringVar(&c.Organization, "organization", "", "Organization name in Terraform Cloud")
 
 	f.StringVar(&c.WorkspaceName, "workspace-name", "", "The name of the Terraform Cloud workspace (conflicts with --workspace-prefix)")
 	f.StringVar(&c.WorkspacePrefix, "workspace-prefix", "", "The prefix of the Terraform Cloud workspaces (conflicts with --workspace-name)")
@@ -70,7 +76,7 @@ func (c *MigrateCommand) Run(args []string) int {
 		return 1
 	}
 
-	if err := c.Meta.LoadConfig(c.config.Hostname); err != nil {
+	if err := c.Meta.LoadConfig(c.Hostname); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
@@ -79,8 +85,8 @@ func (c *MigrateCommand) Run(args []string) int {
 		Client: c.Meta.API,
 
 		Backend: migrate.RemoteBackendConfig{
-			Hostname:     c.config.Hostname,
-			Organization: c.config.Organization,
+			Hostname:     c.Hostname,
+			Organization: c.Organization,
 			Workspaces: migrate.WorkspaceConfig{
 				Prefix: c.WorkspacePrefix,
 				Name:   c.WorkspaceName,
@@ -99,7 +105,7 @@ func (c *MigrateCommand) Run(args []string) int {
 	if migration.MultipleWorkspaces() {
 		c.UI.Output("Checking for existing Terraform Cloud workspaces...")
 
-		list, err := c.Meta.API.Workspaces.List(context.TODO(), c.config.Organization, tfe.WorkspaceListOptions{
+		list, err := c.Meta.API.Workspaces.List(context.TODO(), c.Organization, tfe.WorkspaceListOptions{
 			Search: tfe.String(c.WorkspacePrefix),
 		})
 		if err != nil {
@@ -130,7 +136,7 @@ If you are using the "tfe" provider and "tfe_workspace" you should create worksp
 	} else {
 		c.UI.Output("Checking for an existing Terraform Cloud workspace...")
 
-		ws, err := c.Meta.API.Workspaces.Read(context.Background(), c.config.Organization, c.WorkspaceName)
+		ws, err := c.Meta.API.Workspaces.Read(context.Background(), c.Organization, c.WorkspaceName)
 		if err != nil {
 			if err != tfe.ErrResourceNotFound {
 				c.UI.Error("Failed to get workspace: " + err.Error())

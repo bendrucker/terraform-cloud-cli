@@ -1,31 +1,37 @@
 package cmd
 
 import (
-	"errors"
+	"flag"
 	"fmt"
 
-	"github.com/hashicorp/hcl/v2"
+	"github.com/bendrucker/terraform-cloud-cli/backend"
 	"github.com/hashicorp/terraform/configs"
 	"github.com/skratchdot/open-golang/open"
-	"github.com/zclconf/go-cty/cty"
 )
 
 type OpenCommand struct {
 	*Meta
+
+	Workspace string
 }
 
 func (c *OpenCommand) Run(args []string) int {
-	if len(args) > 1 {
+	flags := c.flags()
+
+	if err := flags.Parse(args); err != nil {
+		c.UI.Error(err.Error())
+		return 1
+	}
+
+	if flags.NArg() > 1 {
 		c.UI.Error("1 argument supported")
 		return 1
 	}
 
 	var path string
-	if len(args) != 0 {
-		path = args[0]
+	if flags.NArg() != 0 {
+		path = flags.Arg(0)
 	}
-
-	c.LoadConfig(args[0])
 
 	parser := configs.NewParser(nil)
 	module, diags := parser.LoadConfigDir(path)
@@ -34,51 +40,28 @@ func (c *OpenCommand) Run(args []string) int {
 		return 1
 	}
 
-	if module.Backend == nil || module.Backend.Type != "remote" {
+	if !backend.IsRemote(module.Backend) {
 		c.UI.Error("Remote backend not found")
 		c.UI.Info("\nTo open a Terraform Cloud workspace, your configuration must include backend configuration:")
 		c.UI.Info(exampleRemoteBackend)
 		return 1
 	}
 
-	content, _, diags := module.Backend.Config.PartialContent(&hcl.BodySchema{
-		Attributes: []hcl.AttributeSchema{
-			{
-				Name: "hostname",
-			},
-			{
-				Name:     "organization",
-				Required: true,
-			},
-		},
-		Blocks: []hcl.BlockHeaderSchema{
-			{
-				Type: "workspaces",
-			},
-		},
-	})
-	if diags.HasErrors() {
-		c.UI.Error(diags.Error())
+	remote, err := backend.DecodeConfig(module.Backend)
+	if err != nil {
+		c.UI.Error(err.Error())
 		return 1
 	}
 
-	host, _ := content.Attributes["hostname"].Expr.Value(&hcl.EvalContext{})
-	org, _ := content.Attributes["organization"].Expr.Value(&hcl.EvalContext{})
-
-	content, _, diags = content.Blocks.OfType("workspaces")[0].Body.PartialContent(&hcl.BodySchema{
-		Attributes: []hcl.AttributeSchema{
-			{Name: "name"},
-			{Name: "prefix"},
-		},
-	})
-	if diags.HasErrors() {
-		c.UI.Error(diags.Error())
+	if c.Workspace != "" && !remote.Workspaces.Multiple() {
+		c.UI.Error("--workspace can only be used when a prefix is set")
 		return 1
 	}
 
-	name, _ := content.Attributes["name"].Expr.Value(&hcl.EvalContext{})
+	url := c.url(remote)
+	c.UI.Output(fmt.Sprintf(`Opening "%s"`, url))
 
-	if err := open.Run(fmt.Sprintf("https://%s/app/%s/workspaces/%s", host.AsString(), org.AsString(), name.AsString())); err != nil {
+	if err := open.Run(url); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
@@ -86,91 +69,41 @@ func (c *OpenCommand) Run(args []string) int {
 	return 0
 }
 
-func (c *OpenCommand) LoadConfig(dir string) error {
-	parser := configs.NewParser(nil)
-	module, diags := parser.LoadConfigDir(dir)
-	if diags.HasErrors() {
-		return diags
-	}
+func (c *OpenCommand) url(remote *backend.RemoteBackend) string {
+	url := fmt.Sprintf("https://%s/app/%s/workspaces", *remote.Hostname, *remote.Organization)
 
-	if module.Backend == nil || module.Backend.Type != "remote" {
-		return errors.New("remote backend not found")
-	}
-
-	content, _, diags := module.Backend.Config.PartialContent(&hcl.BodySchema{
-		Attributes: []hcl.AttributeSchema{
-			{
-				Name: "hostname",
-			},
-			{
-				Name:     "organization",
-				Required: true,
-			},
-		},
-		Blocks: []hcl.BlockHeaderSchema{
-			{
-				Type: "workspaces",
-			},
-		},
-	})
-	if diags.HasErrors() {
-		return diags
-	}
-
-	var host, organization, name, prefix cty.Value
-
-	if attr, ok := content.Attributes["hostname"]; ok {
-		host, diags = attr.Expr.Value(&hcl.EvalContext{})
-		if diags.HasErrors() {
-			return diags
+	if remote.Workspaces.Multiple() {
+		if c.Workspace == "" {
+			return fmt.Sprintf("%s?search=%s", url, *remote.Workspaces.Prefix)
 		}
+
+		return fmt.Sprintf("%s/%s%s", url, *remote.Workspaces.Prefix, c.Workspace)
 	}
 
-	if attr, ok := content.Attributes["organization"]; ok {
-		organization, diags = attr.Expr.Value(&hcl.EvalContext{})
-		if diags.HasErrors() {
-			return diags
-		}
-	}
-
-	content, _, diags = content.Blocks.OfType("workspaces")[0].Body.PartialContent(&hcl.BodySchema{
-		Attributes: []hcl.AttributeSchema{
-			{Name: "name"},
-			{Name: "prefix"},
-		},
-	})
-	if diags.HasErrors() {
-		return diags
-	}
-
-	if attr, ok := content.Attributes["name"]; ok {
-		name, diags = attr.Expr.Value(&hcl.EvalContext{})
-		if diags.HasErrors() {
-			return diags
-		}
-	}
-
-	if attr, ok := content.Attributes["prefix"]; ok {
-		prefix, diags = attr.Expr.Value(&hcl.EvalContext{})
-		if diags.HasErrors() {
-			return diags
-		}
-	}
-
-	if prefix == cty.NilVal {
-
-	}
-
-	fmt.Println(host.AsString(), organization.AsString(), name.AsString())
-	return nil
+	return fmt.Sprintf("%s/%s", url, *remote.Workspaces.Name)
 }
 
 func (c *OpenCommand) Synopsis() string {
-	return ""
+	return "Opens the Terraform Cloud UI to the workspace"
+}
+
+func (c *OpenCommand) flags() *flag.FlagSet {
+	f := c.flagSet("open")
+
+	f.StringVar(&c.Workspace, "workspace", "", "The workspace to open. If the configuration does not set a prefix, setting this is an error.")
+
+	return f
 }
 
 func (c *OpenCommand) Help() string {
-	return ""
+	return `
+Usage: terraform-cloud open [DIR] [options]
+  Opens the Terraform Cloud UI for the provided (or current) directory. If a single workspace is defined,
+  it will be opened directly. If the module allow multiple workspaces (by setting "prefix"), the workspace
+  list will be opened with the prefix set as the search, unless --workspace is set.
+
+Options:
+` + flagUsage(c.flags())
 }
 
 const exampleRemoteBackend = `

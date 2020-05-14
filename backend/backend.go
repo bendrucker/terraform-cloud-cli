@@ -28,7 +28,7 @@ type RemoteBackend struct {
 	Hostname     *string `hcl:"hostname,attr"`
 	Organization *string `hcl:"organization,attr"`
 
-	Workspaces *Workspaces `hcl:"workspaces,block"`
+	Workspaces Workspaces `hcl:"workspaces,block"`
 }
 
 // Workspaces is a Terraform remote backend workspaces configuration
