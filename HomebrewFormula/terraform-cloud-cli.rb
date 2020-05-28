@@ -2,16 +2,16 @@
 class TerraformCloudCli < Formula
   desc "Interactive CLI for operating workspaces in Terraform Cloud"
   homepage "https://github.com/bendrucker/terraform-cloud-cli"
-  version "0.1.3"
+  version "0.1.4"
   bottle :unneeded
 
   if OS.mac?
-    url "https://github.com/bendrucker/terraform-cloud-cli/releases/download/v0.1.3/terraform-cloud-cli_0.1.3_darwin_amd64.tar.gz"
-    sha256 "acc70a25087138e28e4ae9878e15f1ccf7516107f93e2efcb568f96fa52a5dcd"
+    url "https://github.com/bendrucker/terraform-cloud-cli/releases/download/v0.1.4/terraform-cloud-cli_0.1.4_darwin_amd64.tar.gz"
+    sha256 "9fb0e0c93a43ce657570d4179c3dbb3eda4759d4f63659f67ca422942f629571"
   elsif OS.linux?
     if Hardware::CPU.intel?
-      url "https://github.com/bendrucker/terraform-cloud-cli/releases/download/v0.1.3/terraform-cloud-cli_0.1.3_linux_amd64.tar.gz"
-      sha256 "a0d3d3731e6bd444ae19e9247414e64f9355972e370785da79a9adf57ef1edc5"
+      url "https://github.com/bendrucker/terraform-cloud-cli/releases/download/v0.1.4/terraform-cloud-cli_0.1.4_linux_amd64.tar.gz"
+      sha256 "1d2b4ff6444f012262ee5e7300c36a66734bcc6f2918c997589f767ee25fa548"
     end
   end
 
