@@ -12,7 +12,6 @@ import (
 	"github.com/bendrucker/terraform-cloud-cli/migrate"
 	"github.com/bendrucker/terraform-cloud-cli/migrate/configwrite"
 	"github.com/hashicorp/go-tfe"
-	"github.com/hashicorp/hcl/v2"
 	"github.com/pmezard/go-difflib/difflib"
 )
 
@@ -267,21 +266,6 @@ func (c *MigrateCommand) assertUnlocked(workspaces []*tfe.Workspace) error {
 		return fmt.Errorf("workspace '%s' is locked", locked[0])
 	default:
 		return fmt.Errorf("workspaces are locked: %s", strings.Join(locked, ", "))
-	}
-}
-
-func (c *MigrateCommand) printDiags(diags hcl.Diagnostics) {
-	for _, diag := range diags {
-		switch diag.Severity {
-		case hcl.DiagError:
-			c.UI.Error(diag.Summary)
-		case hcl.DiagWarning:
-			c.UI.Warn(diag.Summary)
-		}
-		c.UI.Info(diag.Detail)
-		if diag.Subject != nil {
-			c.UI.Info(diag.Subject.String())
-		}
 	}
 }
 

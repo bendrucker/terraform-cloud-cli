@@ -59,18 +59,6 @@ func (m *Meta) LoadConfig(host string) error {
 	return err
 }
 
-func getToken(config *cliconfig.Config, host string) string {
-	if api, ok := config.Credentials[host]; ok {
-		if token, ok := api["token"]; ok {
-			if str, ok := token.(string); ok {
-				return str
-			}
-		}
-	}
-
-	return ""
-}
-
 func flagUsage(flags *flag.FlagSet) string {
 	var out string
 

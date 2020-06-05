@@ -178,8 +178,6 @@ func (s *RemoteState) Changes() (Changes, error) {
 
 		return nil
 	})
-
-	return changes, nil
 }
 
 // Changes updates the configured backend

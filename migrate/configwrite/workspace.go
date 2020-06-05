@@ -3,10 +3,8 @@ package configwrite
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"path/filepath"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/hashicorp/terraform/configs"
@@ -138,30 +136,6 @@ func replaceTerraformWorkspace(body *hclwrite.Body, variable string) {
 	for _, block := range body.Blocks() {
 		replaceTerraformWorkspace(block.Body(), variable)
 	}
-}
-
-func changedFiles(sources map[string][]byte, changes Changes) (Changes, hcl.Diagnostics) {
-	changed := make(Changes)
-
-	for path, file := range changes {
-		b, err := ioutil.ReadFile(path)
-		if err != nil {
-			return nil, hcl.Diagnostics{
-				&hcl.Diagnostic{
-					Summary: "file read error",
-					Detail:  fmt.Sprintf("could not read file %s", path),
-				},
-			}
-		}
-
-		if bytes.Equal(b, file.hcl.Bytes()) {
-			continue
-		}
-
-		changed[path] = file
-	}
-
-	return changed, nil
 }
 
 func addWorkspaceVariable(file *File, name string) *File {
