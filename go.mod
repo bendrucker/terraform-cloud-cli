@@ -13,7 +13,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
-	github.com/spf13/afero v1.2.2
+	github.com/spf13/afero v1.3.0
 	github.com/stretchr/testify v1.6.1
 	github.com/zclconf/go-cty v1.5.0
 )
