@@ -7,7 +7,7 @@ require (
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/hashicorp/go-tfe v0.10.1
 	github.com/hashicorp/hcl/v2 v2.6.0
-	github.com/hashicorp/terraform v0.13.0
+	github.com/hashicorp/terraform v0.13.1
 	github.com/hashicorp/terraform-svchost v0.0.0-20191011084731-65d371908596
 	github.com/lithammer/dedent v1.1.0
 	github.com/mitchellh/cli v1.1.1
