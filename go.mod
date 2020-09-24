@@ -5,7 +5,7 @@ go 1.14
 require (
 	github.com/google/go-cmp v0.5.2
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
-	github.com/hashicorp/go-tfe v0.10.1
+	github.com/hashicorp/go-tfe v0.10.2
 	github.com/hashicorp/hcl/v2 v2.6.0
 	github.com/hashicorp/terraform v0.13.3
 	github.com/hashicorp/terraform-svchost v0.0.0-20191011084731-65d371908596
