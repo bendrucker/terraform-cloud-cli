@@ -6,7 +6,7 @@ require (
 	github.com/google/go-cmp v0.5.4
 	github.com/hashicorp/go-tfe v0.11.1
 	github.com/hashicorp/hcl/v2 v2.8.2
-	github.com/hashicorp/terraform v0.14.3
+	github.com/hashicorp/terraform v0.14.4
 	github.com/hashicorp/terraform-svchost v0.0.0-20200729002733-f050f53b9734
 	github.com/lithammer/dedent v1.1.0
 	github.com/mitchellh/cli v1.1.2
