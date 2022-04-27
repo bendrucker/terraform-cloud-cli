@@ -4,7 +4,7 @@ go 1.14
 
 require (
 	github.com/google/go-cmp v0.5.8
-	github.com/hashicorp/go-tfe v0.26.0
+	github.com/hashicorp/go-tfe v1.1.0
 	github.com/hashicorp/hcl/v2 v2.12.0
 	github.com/hashicorp/terraform v0.14.10
 	github.com/hashicorp/terraform-svchost v0.0.0-20200729002733-f050f53b9734
