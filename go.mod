@@ -3,7 +3,7 @@ module github.com/bendrucker/terraform-cloud-cli
 go 1.14
 
 require (
-	github.com/google/go-cmp v0.5.7
+	github.com/google/go-cmp v0.5.8
 	github.com/hashicorp/go-tfe v0.26.0
 	github.com/hashicorp/hcl/v2 v2.11.1
 	github.com/hashicorp/terraform v0.14.10
