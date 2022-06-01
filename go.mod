@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/terraform v0.14.10
 	github.com/hashicorp/terraform-svchost v0.0.0-20200729002733-f050f53b9734
 	github.com/lithammer/dedent v1.1.0
-	github.com/mitchellh/cli v1.1.3
+	github.com/mitchellh/cli v1.1.4
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
